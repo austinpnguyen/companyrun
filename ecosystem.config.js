@@ -1,5 +1,5 @@
 /** @type {import('pm2').StartOptions[]} */
-export default {
+module.exports = {
   apps: [
     // ─────────────────────────────────────────────────────────
     // Development — run via tsx with file watching
