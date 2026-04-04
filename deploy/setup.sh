@@ -111,6 +111,12 @@ NGINX_AVAILABLE="/etc/nginx/sites-available/companyrun"
 NGINX_ENABLED="/etc/nginx/sites-enabled/companyrun"
 
 if command -v nginx >/dev/null 2>&1; then
+  # nginx (www-data) needs execute permission on every directory up to frontend/dist.
+  # Home directories are typically 750 — grant o+x so nginx can traverse (not list).
+  HOME_DIR="$(eval echo "~$USER")"
+  sudo chmod o+x "$HOME_DIR"
+  ok "nginx can traverse $HOME_DIR"
+
   # Update the root path in the config to match actual project location
   ESCAPED_ROOT=$(echo "$PROJECT_ROOT/frontend/dist" | sed 's/\//\\\//g')
   sed "s|/home/ubuntu/CompanyRun/frontend/dist|$PROJECT_ROOT/frontend/dist|g" \
