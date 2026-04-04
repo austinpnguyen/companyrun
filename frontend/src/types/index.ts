@@ -34,6 +34,8 @@ export interface AgentTemplate {
   defaultProvider: string | null;
   baseWage: string;
   defaultSkills: string[];
+  tier: string | null;
+  isAdversarial: boolean | null;
   config: Record<string, unknown>;
   createdAt: string;
 }
@@ -50,6 +52,8 @@ export interface Agent {
   personality: Record<string, unknown>;
   memory: Record<string, unknown>;
   config: Record<string, unknown>;
+  tier: string | null;
+  isAdversarial: boolean | null;
   hiredAt: string;
   firedAt: string | null;
   fireReason: string | null;

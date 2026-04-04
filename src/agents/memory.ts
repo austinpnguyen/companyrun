@@ -119,7 +119,15 @@ export class AgentMemory {
     const remainingBudget = this.maxTokenEstimate - systemTokens;
 
     // Fetch recent messages
-    const recentMessages = await this.getMessages(conversationId);
+    const rawMessages = await this.getMessages(conversationId);
+
+    // Truncate assistant message content before injection to prevent prompt explosion
+    const recentMessages = rawMessages.map((msg) => {
+      if (msg.role === 'assistant' && msg.content) {
+        return { ...msg, content: this.truncateForInjection(msg.content) };
+      }
+      return msg;
+    });
 
     // Trim to fit within the token budget
     const trimmed = this.trimToFit(recentMessages, remainingBudget);
@@ -136,6 +144,15 @@ export class AgentMemory {
     );
 
     return [systemMessage, ...trimmed];
+  }
+
+  // ----------------------------------------------------------
+  // Truncate text to maxChars for context injection safety
+  // ----------------------------------------------------------
+
+  truncateForInjection(text: string, maxChars = 2000): string {
+    if (text.length <= maxChars) return text;
+    return text.slice(0, maxChars) + '\n\n...[truncated for context limit]';
   }
 
   // ----------------------------------------------------------

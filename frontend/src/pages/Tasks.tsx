@@ -3,8 +3,9 @@
 // ============================================================
 
 import { useEffect, useState } from 'react';
-import { Plus, X, GripVertical } from 'lucide-react';
+import { Plus, X, GripVertical, Loader2, Ban } from 'lucide-react';
 import { useTaskStore } from '../stores/taskStore';
+import { api } from '../services/api';
 import StatusBadge from '../components/common/StatusBadge';
 import type { Task, TaskPriority } from '../types';
 
@@ -84,7 +85,7 @@ export default function Tasks() {
               {/* Column tasks */}
               <div className="space-y-3">
                 {columnTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} />
+                  <TaskCard key={task.id} task={task} onRefresh={() => fetchTasks()} />
                 ))}
                 {columnTasks.length === 0 && (
                   <div className="text-center py-8 text-gray-600 text-sm border border-dashed border-gray-700 rounded-lg">
@@ -107,7 +108,7 @@ export default function Tasks() {
             {tasks
               .filter((t) => ['created', 'failed', 'cancelled'].includes(t.status))
               .map((task) => (
-                <TaskCard key={task.id} task={task} />
+                <TaskCard key={task.id} task={task} onRefresh={() => fetchTasks()} />
               ))}
           </div>
         </div>
@@ -194,8 +195,32 @@ export default function Tasks() {
 
 // ── TaskCard component ───────────────────────────────────────
 
-function TaskCard({ task }: { task: Task }) {
+interface TaskCardProps {
+  task: Task;
+  onRefresh: () => void;
+}
+
+function TaskCard({ task, onRefresh }: TaskCardProps) {
   const complexityDots = Array.from({ length: 5 }, (_, i) => i < task.complexity);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const canCancel = task.status === 'in_progress' || task.status === 'assigned';
+
+  const handleCancel = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Cancel task "${task.title}"?`)) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await api.cancelTask(task.id);
+      onRefresh();
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Failed to cancel');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <div className="card hover:border-gray-600 transition-colors">
@@ -224,6 +249,27 @@ function TaskCard({ task }: { task: Task }) {
       {task.assignedAgentId && (
         <div className="mt-2 text-xs text-gray-500">
           Assigned: <span className="text-gray-400">{task.assignedAgentId.slice(0, 8)}...</span>
+        </div>
+      )}
+
+      {cancelError && (
+        <p className="text-xs text-red-400 mt-1">{cancelError}</p>
+      )}
+
+      {canCancel && (
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={handleCancel}
+            disabled={cancelling}
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-orange-400 transition-colors disabled:opacity-50"
+          >
+            {cancelling ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Ban className="w-3 h-3" />
+            )}
+            Cancel
+          </button>
         </div>
       )}
     </div>

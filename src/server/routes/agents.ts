@@ -75,6 +75,16 @@ export default async function agentRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
+  // ── POST /api/agents/:id/cancel — cancel agent pipeline ──
+  app.post('/agents/:id/cancel', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    log.debug({ agentId: id }, 'POST /api/agents/:id/cancel');
+
+    agentManager.cancelAgent(id);
+
+    return reply.code(200).send({ success: true });
+  });
+
   // ── POST /api/agents/:id/fire — fire an agent ────────────
   app.post('/agents/:id/fire', async (request, reply) => {
     const { id } = request.params as { id: string };

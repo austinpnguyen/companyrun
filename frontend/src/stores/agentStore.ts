@@ -4,16 +4,18 @@
 
 import { create } from 'zustand';
 import { api } from '../services/api';
-import type { Agent } from '../types';
+import type { Agent, AgentTemplate } from '../types';
 
 interface AgentState {
   agents: Agent[];
+  templates: AgentTemplate[];
   selectedAgent: Agent | null;
   loading: boolean;
   error: string | null;
 
   fetchAgents: (status?: string) => Promise<void>;
   fetchAgent: (id: string) => Promise<void>;
+  fetchTemplates: () => Promise<void>;
   hireAgent: (data: { templateRole?: string; name: string }) => Promise<void>;
   fireAgent: (id: string, reason: string) => Promise<void>;
   clearError: () => void;
@@ -21,6 +23,7 @@ interface AgentState {
 
 export const useAgentStore = create<AgentState>((set) => ({
   agents: [],
+  templates: [],
   selectedAgent: null,
   loading: false,
   error: null,
@@ -42,6 +45,15 @@ export const useAgentStore = create<AgentState>((set) => ({
       set({ selectedAgent: res.agent, loading: false });
     } catch (err) {
       set({ error: (err as Error).message, loading: false });
+    }
+  },
+
+  fetchTemplates: async () => {
+    try {
+      const res = await api.getTemplates();
+      set({ templates: res.templates });
+    } catch (err) {
+      console.error('Failed to fetch templates:', err);
     }
   },
 

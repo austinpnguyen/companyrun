@@ -58,6 +58,7 @@ export class AgentRuntime {
   private config: AgentRuntimeConfig;
   private memory: AgentMemory;
   private _isRunning: boolean = false;
+  private isCancelled: boolean = false;
   private mcpToolsLoaded: boolean = false;
 
   constructor(config: AgentRuntimeConfig) {
@@ -158,6 +159,10 @@ export class AgentRuntime {
 
     // Tool-call loop: send → check tool_calls → execute → send results → repeat
     for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+      if (this.isCancelled) {
+        throw new Error('Agent cancelled');
+      }
+
       log.debug(
         {
           agentId: this.config.agentId,
@@ -345,6 +350,18 @@ export class AgentRuntime {
         error: `Tool execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       });
     }
+  }
+
+  // ----------------------------------------------------------
+  // Cancel in-flight processing (sets cancellation flag)
+  // ----------------------------------------------------------
+
+  cancel(): void {
+    this.isCancelled = true;
+    log.warn(
+      { agentId: this.config.agentId, name: this.config.name },
+      'Agent runtime cancelled',
+    );
   }
 
   // ----------------------------------------------------------

@@ -4,6 +4,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { taskManager, taskReviewer } from '../../tasks/index.js';
+import { agentManager } from '../../agents/index.js';
 import { wsManager } from '../websocket.js';
 import { createLogger } from '../../shared/logger.js';
 import { NotFoundError, ValidationError } from '../../shared/errors.js';
@@ -142,6 +143,24 @@ export default async function taskRoutes(app: FastifyInstance): Promise<void> {
     wsManager.emitTaskUpdate(task.id, task.status ?? 'assigned', { agentId: body.agentId });
 
     return reply.send({ task });
+  });
+
+  // ── POST /api/tasks/:id/cancel — cancel a task ───────────
+  app.post('/tasks/:id/cancel', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    log.debug({ taskId: id }, 'POST /api/tasks/:id/cancel');
+
+    const task = await taskManager.cancel(id);
+
+    // Cancel the assigned agent's in-flight processing if any
+    if (task.assignedAgentId) {
+      agentManager.cancelAgent(task.assignedAgentId);
+    }
+
+    // Emit WebSocket event
+    wsManager.emitTaskUpdate(task.id, 'cancelled');
+
+    return reply.code(200).send({ success: true, task });
   });
 
   // ── POST /api/tasks/:id/review — submit manual review ────

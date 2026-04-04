@@ -2,7 +2,7 @@
 // API Service — fetch-based client for backend endpoints
 // ============================================================
 
-import type { SetupStatus, SetupApiResponse } from '../types';
+import type { SetupStatus, SetupApiResponse, AgentTemplate, Task } from '../types';
 
 // When VITE_API_URL is set (e.g. "http://192.168.0.141"), calls go cross-origin.
 // Empty string = same-origin, which works with the Vite dev proxy and with nginx in production.
@@ -47,6 +47,10 @@ export const api = {
     request<any>(`/agents/${id}/fire`, { method: 'POST', body: JSON.stringify({ reason }) }),
   updateAgent: (id: string, data: Record<string, unknown>) =>
     request<any>(`/agents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getTemplates: () =>
+    request<{ templates: AgentTemplate[]; total: number }>('/agents/templates'),
+  cancelAgent: (id: string) =>
+    request<{ success: boolean }>(`/agents/${id}/cancel`, { method: 'POST' }),
 
   // ── Tasks ────────────────────────────────────────────────
   getTasks: (params?: Record<string, string>) => {
@@ -69,6 +73,8 @@ export const api = {
     request<any>(`/tasks/${id}/assign`, { method: 'POST', body: JSON.stringify({ agentId }) }),
   reviewTask: (id: string, score: number, feedback: string) =>
     request<any>(`/tasks/${id}/review`, { method: 'POST', body: JSON.stringify({ score, feedback }) }),
+  cancelTask: (id: string) =>
+    request<{ success: boolean; task: Task }>(`/tasks/${id}/cancel`, { method: 'POST' }),
 
   // ── Economy ──────────────────────────────────────────────
   getEconomyOverview: (periodDays?: number) => {

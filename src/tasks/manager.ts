@@ -512,6 +512,26 @@ export class TaskManager {
   }
 
   // ----------------------------------------------------------
+  // Cancel a task (terminal-state guard)
+  // ----------------------------------------------------------
+
+  async cancel(taskId: string): Promise<Task> {
+    const existing = await this.getById(taskId);
+    if (!existing) {
+      throw new NotFoundError('Task', taskId);
+    }
+
+    const terminalStatuses = ['completed', 'failed', 'cancelled'];
+    if (terminalStatuses.includes(existing.status ?? '')) {
+      throw new ConflictError(
+        `Cannot cancel task in '${existing.status}' status — already in a terminal state`,
+      );
+    }
+
+    return this.transition(taskId, 'cancelled');
+  }
+
+  // ----------------------------------------------------------
   // Get subtasks for a parent task
   // ----------------------------------------------------------
 

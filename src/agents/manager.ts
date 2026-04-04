@@ -203,6 +203,19 @@ export class AgentManager {
   }
 
   // ----------------------------------------------------------
+  // Cancel an agent's in-flight pipeline processing
+  // ----------------------------------------------------------
+
+  cancelAgent(agentId: string): void {
+    const runtime = this.activeAgents.get(agentId);
+    if (runtime) {
+      runtime.cancel();
+    } else {
+      log.warn({ agentId }, 'cancelAgent: no active runtime found for agent');
+    }
+  }
+
+  // ----------------------------------------------------------
   // Get an agent's runtime
   // ----------------------------------------------------------
 
