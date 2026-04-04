@@ -1,0 +1,49 @@
+# =============================================================
+# CompanyRun — Docker Compose
+# =============================================================
+#
+# Usage:
+#   docker compose up -d        # Start
+#   docker compose logs -f      # View logs
+#   docker compose down         # Stop
+#   docker compose up -d --build  # Rebuild & start
+#
+# Note: Database is cloud-hosted on Supabase — no local DB
+# container needed. Configure DATABASE_URL in your .env file.
+# =============================================================
+
+services:
+  companyrun:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: companyrun
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      # Persist logs outside container
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw 1}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    # RPi 4 memory limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"

@@ -1,0 +1,51 @@
+{
+  "name": "companyrun",
+  "version": "0.1.0",
+  "description": "Multi-agent orchestration system — run your own AI company",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:seed": "tsx src/db/seed.ts",
+    "lint": "eslint src/"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "orchestration",
+    "mcp",
+    "llm",
+    "company"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^10.0.2",
+    "@fastify/static": "^9.0.0",
+    "@fastify/websocket": "^11.0.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.39.3",
+    "fastify": "^5.2.1",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.1.3",
+    "postgres": "^3.4.5",
+    "socket.io": "^4.8.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "drizzle-kit": "^0.30.5",
+    "eslint": "^9.23.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
