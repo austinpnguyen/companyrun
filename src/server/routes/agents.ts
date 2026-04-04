@@ -3,6 +3,8 @@
 // ============================================================
 
 import type { FastifyInstance } from 'fastify';
+import { db } from '../../config/database.js';
+import { agentTemplates } from '../../db/schema.js';
 import { agentManager } from '../../agents/index.js';
 import { mcpManager } from '../../mcp/index.js';
 import { performanceReviewer } from '../../kpi/index.js';
@@ -23,6 +25,17 @@ export default async function agentRoutes(app: FastifyInstance): Promise<void> {
     const agentList = await agentManager.listAgents(filter);
 
     return reply.send({ agents: agentList, total: agentList.length });
+  });
+
+  // ── GET /api/agents/templates — list all agent templates ──
+  // MUST be registered before /:id to avoid "templates" being parsed as a UUID
+  app.get('/agents/templates', async (_request, reply) => {
+    log.debug('GET /api/agents/templates');
+    const templates = await db
+      .select()
+      .from(agentTemplates)
+      .orderBy(agentTemplates.tier, agentTemplates.name);
+    return reply.send({ templates, total: templates.length });
   });
 
   // ── GET /api/agents/:id — agent detail ────────────────────
