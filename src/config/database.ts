@@ -4,7 +4,7 @@ import { env } from './env.js';
 import * as schema from '../db/schema.js';
 
 /** Raw postgres.js connection — used by Drizzle internally */
-const connection = postgres(env.DATABASE_URL, {
+const connection = postgres(env.DATABASE_URL ?? '', {
   max: 10, // connection pool size
   idle_timeout: 20,
   connect_timeout: 10,
