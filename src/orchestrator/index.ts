@@ -19,6 +19,8 @@ import { taskScheduler } from './scheduler.js';
 import { decisionEngine } from './decision-engine.js';
 import { consultationSystem } from './consultation.js';
 import type { Decision } from './decision-engine.js';
+import { taskExecutor } from '../tasks/executor.js';
+import { adversarialPipeline } from '../tasks/adversarial.js';
 
 const log = createLogger('orchestrator');
 
@@ -195,24 +197,42 @@ export class Orchestrator {
         );
       }
 
-      // 3. Run decision engine analysis
+      // 3. Execute assigned tasks through agent runtimes (parallel)
+      const execution = await taskExecutor.executeAssignedTasks();
+      if (execution.started > 0) {
+        log.info(
+          { started: execution.started, running: execution.running },
+          'Task execution batch started',
+        );
+      }
+
+      // 4. Adversarial review pass — dispatch completed tasks to adversarial agents
+      const adversarial = await adversarialPipeline.reviewCompletedTasks();
+      if (adversarial.dispatched > 0) {
+        log.info(
+          { dispatched: adversarial.dispatched },
+          'Adversarial review dispatched',
+        );
+      }
+
+      // 5. Run decision engine analysis
       const newDecisions = await decisionEngine.analyze();
 
-      // 4. Create consultation requests for decisions that need user input
+      // 6. Create consultation requests for decisions that need user input
       for (const decision of newDecisions) {
         if (this.requiresUserApproval(decision)) {
           await consultationSystem.createRequest(decision);
         }
       }
 
-      // 5. Auto-process decisions that don't require approval
+      // 7. Auto-process decisions that don't require approval
       for (const decision of newDecisions) {
         if (!this.requiresUserApproval(decision)) {
           await this.autoProcessDecision(decision);
         }
       }
 
-      // 6. Prune stale decisions
+      // 8. Prune stale decisions
       decisionEngine.pruneStaleDecisions();
 
       const elapsedMs = Date.now() - startMs;
@@ -600,3 +620,5 @@ export { DecisionEngine, decisionEngine } from './decision-engine.js';
 export type { Decision } from './decision-engine.js';
 export { ConsultationSystem, consultationSystem } from './consultation.js';
 export type { ConsultationRequest } from './consultation.js';
+export { taskExecutor } from '../tasks/executor.js';
+export { adversarialPipeline } from '../tasks/adversarial.js';

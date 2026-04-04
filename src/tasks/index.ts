@@ -17,3 +17,10 @@ export type { DecompositionResult } from './decomposer.js';
 // Task Reviewer — quality review
 export { TaskReviewer, taskReviewer } from './reviewer.js';
 export type { ReviewResult } from './reviewer.js';
+
+// Task Executor — runs assigned tasks through agent runtimes
+export { TaskExecutor, taskExecutor } from './executor.js';
+
+// Adversarial Pipeline — auto-review completed tasks with adversarial agents
+export { AdversarialPipeline, adversarialPipeline } from './adversarial.js';
+export type { AdversarialReview } from './adversarial.js';
