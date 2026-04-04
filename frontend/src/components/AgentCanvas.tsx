@@ -13,7 +13,15 @@ const NODE_RADIUS = 36;
 const INNER_RADIUS = 140;
 const OUTER_RADIUS = 260;
 const CX = 300;
-const CY = 300;
+const CY = 310;
+
+/** Skip filler words so "The Auditor" → "A", "Devil's Advocate" → "D" */
+function getInitial(name: string): string {
+  const skip = new Set(['the', 'a', 'an', 'of', 'for']);
+  const words = name.trim().split(/\s+/);
+  const meaningful = words.find((w) => !skip.has(w.toLowerCase())) ?? words[0];
+  return meaningful.charAt(0).toUpperCase();
+}
 
 function getTierColors(tier: string | null, isAdversarial: boolean | null) {
   if (tier === 'adversarial' || isAdversarial) {
@@ -106,7 +114,7 @@ export default function AgentCanvas({ agents, onAgentClick }: AgentCanvasProps) 
       `}</style>
 
       <svg
-        viewBox="0 0 600 600"
+        viewBox="0 0 600 680"
         width="100%"
         aria-label="Agent organization chart"
       >
@@ -217,7 +225,7 @@ export default function AgentCanvas({ agents, onAgentClick }: AgentCanvasProps) 
           const colors = getTierColors(agent.tier, agent.isAdversarial);
           const opacity = getNodeOpacity(agent.status);
           const warningRing = getStatusRingColor(agent.status);
-          const initial = agent.name.charAt(0).toUpperCase();
+          const initial = getInitial(agent.name);
           const isFired = agent.status === 'fired';
 
           const tierKey =
