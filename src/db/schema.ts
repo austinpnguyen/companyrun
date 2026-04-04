@@ -31,13 +31,19 @@ export const company = pgTable('company', {
 export const agentTemplates = pgTable('agent_templates', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
-  role: text('role').notNull(),
+  role: text('role').notNull().unique(),
   description: text('description'),
   systemPrompt: text('system_prompt').notNull(),
   defaultModel: text('default_model'),
   defaultProvider: text('default_provider'),
   baseWage: decimal('base_wage', { precision: 8, scale: 2 }).default('10.00'),
   defaultSkills: text('default_skills').array().default([]),
+  /** Organisational tier: 'leadership' | 'worker' | 'specialist' | 'adversarial' */
+  tier: text('tier').default('worker'),
+  /** Adversarial agents critique rather than produce — wired into review phase */
+  isAdversarial: boolean('is_adversarial').default(false),
+  /** Which role/area this adversarial agent targets (null for non-adversarial) */
+  adversarialTarget: text('adversarial_target'),
   config: jsonb('config').default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
@@ -52,6 +58,8 @@ export const agents = pgTable('agents', {
   systemPrompt: text('system_prompt').notNull(),
   model: text('model').notNull(),
   provider: text('provider').notNull(),
+  tier: text('tier').default('worker'),
+  isAdversarial: boolean('is_adversarial').default(false),
   personality: jsonb('personality').default({}),
   memory: jsonb('memory').default({}),
   config: jsonb('config').default({}),

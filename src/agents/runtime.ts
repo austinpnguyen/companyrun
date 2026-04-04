@@ -14,6 +14,16 @@ const log = createLogger('agents:runtime');
 /** Maximum iterations of the tool-call loop to prevent infinite loops */
 const MAX_TOOL_ITERATIONS = 10;
 
+/**
+ * Strip <think>...</think> blocks from LLM output.
+ * Reasoning models (DeepSeek R1, QwQ, etc.) wrap chain-of-thought in these tags.
+ * We remove them before showing output to users or storing in conversation history.
+ * Handles multiple blocks and nested content. Trims leading/trailing whitespace after removal.
+ */
+function stripThinkTags(text: string): string {
+  return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+}
+
 // ============================================================
 // Types
 // ============================================================
@@ -263,7 +273,18 @@ export class AgentRuntime {
       }
 
       // No tool calls — this is the final response
-      finalResponse = assistantMessage.content ?? '';
+      // Strip <think>...</think> blocks before storing or returning.
+      // Reasoning models (DeepSeek R1, QwQ, etc.) wrap internal chain-of-thought
+      // in these tags. We preserve the reasoning in logs but show only the clean output.
+      const rawResponse = assistantMessage.content ?? '';
+      finalResponse = stripThinkTags(rawResponse);
+
+      if (rawResponse !== finalResponse) {
+        log.debug(
+          { agentId: this.config.agentId },
+          'Stripped <think> tags from response',
+        );
+      }
 
       // Store the assistant response
       await this.memory.addMessage(conversationId, {

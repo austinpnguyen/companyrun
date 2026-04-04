@@ -4,7 +4,7 @@
 
 import { eq } from 'drizzle-orm';
 import { db } from '../config/database.js';
-import { agents, wallets, activityLog } from '../db/schema.js';
+import { agents, wallets, activityLog, agentTemplates } from '../db/schema.js';
 import { createLogger } from '../shared/logger.js';
 import { NotFoundError, ValidationError } from '../shared/errors.js';
 import type { Agent } from '../shared/types.js';
@@ -41,8 +41,28 @@ export class AgentManager {
       template = getTemplateByRole(params.templateRole);
       if (!template) {
         throw new ValidationError(
-          `Unknown template role: "${params.templateRole}". Available roles: developer, writer, analyst, designer, support`,
+          `Unknown template role: "${params.templateRole}". Available roles: ${
+            (await db.select({ role: agentTemplates.role }).from(agentTemplates))
+              .map((r) => r.role)
+              .join(', ')
+          }`,
         );
+      }
+
+      // Load the full system prompt from DB (source of truth for prompts)
+      const [dbTemplate] = await db
+        .select({ systemPrompt: agentTemplates.systemPrompt, tier: agentTemplates.tier, isAdversarial: agentTemplates.isAdversarial })
+        .from(agentTemplates)
+        .where(eq(agentTemplates.role, params.templateRole))
+        .limit(1);
+
+      if (dbTemplate) {
+        template = {
+          ...template,
+          systemPrompt: dbTemplate.systemPrompt,
+          tier: (dbTemplate.tier ?? template.tier) as AgentTemplate['tier'],
+          isAdversarial: dbTemplate.isAdversarial ?? template.isAdversarial,
+        };
       }
     }
 
@@ -85,6 +105,8 @@ export class AgentManager {
         systemPrompt,
         model,
         provider,
+        tier: template?.tier ?? 'worker',
+        isAdversarial: template?.isAdversarial ?? false,
         personality,
         config: {
           suggestedSkills: params.customConfig?.suggestedSkills ??
