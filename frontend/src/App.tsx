@@ -1,6 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { applyStoredTheme } from './stores/themeStore';
 import Layout from './components/layout/Layout';
+
+// Apply theme immediately (before first paint) to prevent flash
+applyStoredTheme();
 import Dashboard from './pages/Dashboard';
 import Agents from './pages/Agents';
 import Tasks from './pages/Tasks';
@@ -57,7 +61,7 @@ function SetupGuard({ children }: { children: React.ReactNode }) {
   if (!checked) {
     // Show nothing while checking — avoids flash of wrong page
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--cr-bg)' }}>
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );

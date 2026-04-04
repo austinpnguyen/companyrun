@@ -8,7 +8,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   return (
-    <div className="flex min-h-screen bg-gray-900">
+    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--cr-bg)' }}>
       <Sidebar />
       <div className="flex-1 flex flex-col min-h-screen">
         <Header />

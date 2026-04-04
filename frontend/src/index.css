@@ -2,67 +2,310 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Global base styles ────────────────────────────────────── */
+/* ============================================================
+   Theme variables
+   Applied via data-theme on <html>. Dark is the default.
+   ============================================================ */
+
+:root,
+[data-theme="dark"] {
+  --cr-bg:        #0f172a;
+  --cr-surface:   #1e293b;
+  --cr-raised:    #334155;
+  --cr-input:     #334155;
+  --cr-border:    #334155;
+  --cr-border-2:  #475569;
+  --cr-text:      #f1f5f9;
+  --cr-text-2:    #cbd5e1;
+  --cr-text-3:    #94a3b8;
+  --cr-text-4:    #64748b;
+  --cr-text-5:    #475569;
+  --cr-accent:    #3b82f6;
+  --cr-accent-h:  #2563eb;
+  --cr-danger:    #ef4444;
+  --cr-danger-h:  #dc2626;
+  --cr-success:   #22c55e;
+  --cr-success-h: #16a34a;
+  --cr-nav-active-bg:   rgba(59,130,246,0.15);
+  --cr-nav-active-text: #60a5fa;
+  --cr-nav-hover-bg:    rgba(255,255,255,0.05);
+  --cr-nav-hover-text:  #e2e8f0;
+  --cr-scrollbar-track: #1e293b;
+  --cr-scrollbar-thumb: #475569;
+  --cr-scrollbar-hover: #64748b;
+  --cr-card-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  --cr-btn-primary-text: #ffffff;
+  --cr-logo-color: #60a5fa;
+}
+
+[data-theme="light"] {
+  --cr-bg:        #f1f5f9;
+  --cr-surface:   #ffffff;
+  --cr-raised:    #f8fafc;
+  --cr-input:     #f8fafc;
+  --cr-border:    #e2e8f0;
+  --cr-border-2:  #cbd5e1;
+  --cr-text:      #0f172a;
+  --cr-text-2:    #1e293b;
+  --cr-text-3:    #475569;
+  --cr-text-4:    #64748b;
+  --cr-text-5:    #94a3b8;
+  --cr-accent:    #2563eb;
+  --cr-accent-h:  #1d4ed8;
+  --cr-danger:    #dc2626;
+  --cr-danger-h:  #b91c1c;
+  --cr-success:   #16a34a;
+  --cr-success-h: #15803d;
+  --cr-nav-active-bg:   rgba(37,99,235,0.1);
+  --cr-nav-active-text: #2563eb;
+  --cr-nav-hover-bg:    rgba(0,0,0,0.04);
+  --cr-nav-hover-text:  #1e293b;
+  --cr-scrollbar-track: #e2e8f0;
+  --cr-scrollbar-thumb: #94a3b8;
+  --cr-scrollbar-hover: #64748b;
+  --cr-card-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+  --cr-btn-primary-text: #ffffff;
+  --cr-logo-color: #2563eb;
+}
+
+[data-theme="colorful"] {
+  --cr-bg:        #07011a;
+  --cr-surface:   #110733;
+  --cr-raised:    #1d0f52;
+  --cr-input:     #1d0f52;
+  --cr-border:    #4c1d95;
+  --cr-border-2:  #6d28d9;
+  --cr-text:      #ede9fe;
+  --cr-text-2:    #ddd6fe;
+  --cr-text-3:    #c4b5fd;
+  --cr-text-4:    #a78bfa;
+  --cr-text-5:    #7c3aed;
+  --cr-accent:    #8b5cf6;
+  --cr-accent-h:  #7c3aed;
+  --cr-danger:    #f43f5e;
+  --cr-danger-h:  #e11d48;
+  --cr-success:   #34d399;
+  --cr-success-h: #10b981;
+  --cr-nav-active-bg:   rgba(139,92,246,0.2);
+  --cr-nav-active-text: #c4b5fd;
+  --cr-nav-hover-bg:    rgba(139,92,246,0.1);
+  --cr-nav-hover-text:  #ddd6fe;
+  --cr-scrollbar-track: #110733;
+  --cr-scrollbar-thumb: #4c1d95;
+  --cr-scrollbar-hover: #6d28d9;
+  --cr-card-shadow: 0 0 0 1px rgba(109,40,217,0.3), 0 4px 16px rgba(139,92,246,0.1);
+  --cr-btn-primary-text: #ffffff;
+  --cr-logo-color: #a78bfa;
+}
+
+/* ============================================================
+   Global base — driven by CSS vars
+   ============================================================ */
+
 html {
-  @apply bg-gray-900 text-gray-100;
+  background-color: var(--cr-bg);
+  color: var(--cr-text);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 body {
   @apply min-h-screen antialiased;
 }
 
-/* ── Scrollbar (webkit) ────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  @apply bg-gray-800;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-600 rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+/* ============================================================
+   Scrollbar
+   ============================================================ */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--cr-scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--cr-scrollbar-thumb); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cr-scrollbar-hover); }
+
+/* ============================================================
+   Tailwind class overrides — make existing class names theme-aware.
+   ALL pages use these classes, so we get free theming site-wide.
+   ============================================================ */
+
+/* Backgrounds */
+.bg-gray-900 { background-color: var(--cr-bg) !important; }
+.bg-gray-800 { background-color: var(--cr-surface) !important; }
+.bg-gray-700 { background-color: var(--cr-raised) !important; }
+.bg-gray-600 { background-color: var(--cr-border-2) !important; }
+
+/* Text */
+.text-white  { color: var(--cr-text) !important; }
+.text-gray-100 { color: var(--cr-text) !important; }
+.text-gray-200 { color: var(--cr-text-2) !important; }
+.text-gray-300 { color: var(--cr-text-2) !important; }
+.text-gray-400 { color: var(--cr-text-3) !important; }
+.text-gray-500 { color: var(--cr-text-4) !important; }
+.text-gray-600 { color: var(--cr-text-5) !important; }
+
+/* Borders */
+.border-gray-700 { border-color: var(--cr-border) !important; }
+.border-gray-600 { border-color: var(--cr-border-2) !important; }
+
+/* Hover overrides */
+.hover\:bg-gray-700\/50:hover { background-color: var(--cr-nav-hover-bg) !important; }
+.hover\:bg-gray-600:hover { background-color: var(--cr-raised) !important; }
+.hover\:text-gray-200:hover { color: var(--cr-nav-hover-text) !important; }
+
+/* ============================================================
+   Colorful theme extras — gradient cards, glowing accents
+   ============================================================ */
+
+[data-theme="colorful"] .card {
+  background: linear-gradient(135deg, var(--cr-surface) 0%, #160a3d 100%) !important;
+  border-color: var(--cr-border) !important;
 }
 
-/* ── Utility classes ───────────────────────────────────────── */
+[data-theme="colorful"] .btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #ec4899) !important;
+  border: none;
+}
+[data-theme="colorful"] .btn-primary:hover {
+  background: linear-gradient(135deg, #6d28d9, #db2777) !important;
+  opacity: 0.95;
+}
+
+[data-theme="colorful"] aside {
+  background: linear-gradient(180deg, #0d0330 0%, #07011a 100%) !important;
+  border-right-color: var(--cr-border) !important;
+}
+
+[data-theme="colorful"] header {
+  background: linear-gradient(90deg, #110733 0%, #0d0330 100%) !important;
+  border-bottom-color: var(--cr-border) !important;
+}
+
+/* ============================================================
+   Light theme extras
+   ============================================================ */
+
+[data-theme="light"] aside {
+  background: #ffffff !important;
+  border-right-color: var(--cr-border) !important;
+  box-shadow: 1px 0 8px rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] header {
+  background: #ffffff !important;
+  border-bottom-color: var(--cr-border) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .card {
+  box-shadow: var(--cr-card-shadow) !important;
+  border-color: var(--cr-border) !important;
+}
+
+[data-theme="light"] .text-blue-500 { color: #2563eb !important; }
+[data-theme="light"] .text-blue-400 { color: #3b82f6 !important; }
+
+/* ============================================================
+   Utility classes — use CSS vars
+   ============================================================ */
+
 @layer components {
   .card {
-    @apply bg-gray-800 rounded-lg border border-gray-700 p-4;
+    background-color: var(--cr-surface);
+    border-radius: 0.5rem;
+    border: 1px solid var(--cr-border);
+    padding: 1rem;
+    box-shadow: var(--cr-card-shadow);
   }
+
   .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    background-color: var(--cr-accent);
+    color: var(--cr-btn-primary-text);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.15s, opacity 0.15s;
+    cursor: pointer;
   }
+  .btn-primary:hover { background-color: var(--cr-accent-h); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
   .btn-secondary {
-    @apply bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium px-4 py-2 rounded-lg transition-colors;
+    background-color: var(--cr-raised);
+    color: var(--cr-text-2);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--cr-border);
+    transition: background-color 0.15s;
+    cursor: pointer;
   }
+  .btn-secondary:hover { background-color: var(--cr-border-2); }
+
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    background-color: var(--cr-danger);
+    color: #fff;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.15s;
+    cursor: pointer;
   }
+  .btn-danger:hover { background-color: var(--cr-danger-h); }
+
   .btn-success {
-    @apply bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+    background-color: var(--cr-success);
+    color: #fff;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.15s;
+    cursor: pointer;
   }
+  .btn-success:hover { background-color: var(--cr-success-h); }
+
   .input {
-    @apply bg-gray-700 border border-gray-600 text-gray-100 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+    background-color: var(--cr-input);
+    border: 1px solid var(--cr-border);
+    color: var(--cr-text);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
+  .input:focus {
+    outline: none;
+    border-color: var(--cr-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--cr-accent) 20%, transparent);
+  }
+  .input::placeholder { color: var(--cr-text-4); }
+
   .label {
-    @apply block text-sm font-medium text-gray-400 mb-1;
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--cr-text-3);
+    margin-bottom: 0.25rem;
   }
 }
 
-/* ── Animations ────────────────────────────────────────────── */
+/* ============================================================
+   Animations
+   ============================================================ */
+
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+.animate-fadeIn { animation: fadeIn 0.3s ease-out; }
 
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
+/* ============================================================
+   Theme transition — smooth switch
+   ============================================================ */
+
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+/* but NOT layout/transform transitions (don't affect animations) */
+.animate-spin, .animate-pulse, .animate-bounce,
+[class*="transition-"] {
+  transition: inherit;
 }
