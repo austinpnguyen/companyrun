@@ -3,6 +3,9 @@
 // ============================================================
 
 import type { FastifyInstance } from 'fastify';
+import { sql, desc } from 'drizzle-orm';
+import { db } from '../../config/database.js';
+import { llmUsage } from '../../db/schema.js';
 import { economyEngine, walletService } from '../../economy/index.js';
 import { wsManager } from '../websocket.js';
 import { createLogger } from '../../shared/logger.js';
@@ -101,5 +104,44 @@ export default async function economyRoutes(app: FastifyInstance): Promise<void>
     const health = await economyEngine.healthCheck();
 
     return reply.send({ health });
+  });
+
+  // ── GET /api/economy/token-usage — LLM token usage per agent ──
+  app.get('/economy/token-usage', async (request, reply) => {
+    const query = request.query as { days?: string };
+    const days = query.days ? parseInt(query.days, 10) : 7;
+    log.debug({ days }, 'GET /api/economy/token-usage');
+
+    const since = new Date(Date.now() - days * 86_400_000);
+
+    // Aggregate by agentId: total prompt, completion, cost, calls
+    const rows = await db
+      .select({
+        agentId:          llmUsage.agentId,
+        provider:         llmUsage.provider,
+        model:            llmUsage.model,
+        totalPrompt:      sql<number>`SUM(${llmUsage.promptTokens})::int`,
+        totalCompletion:  sql<number>`SUM(${llmUsage.completionTokens})::int`,
+        totalCostUsd:     sql<number>`SUM(${llmUsage.costUsd}::numeric)`,
+        callCount:        sql<number>`COUNT(*)::int`,
+        avgLatencyMs:     sql<number>`AVG(${llmUsage.latencyMs})::int`,
+      })
+      .from(llmUsage)
+      .where(sql`${llmUsage.createdAt} >= ${since}`)
+      .groupBy(llmUsage.agentId, llmUsage.provider, llmUsage.model)
+      .orderBy(desc(sql`SUM(${llmUsage.costUsd}::numeric)`));
+
+    // Also compute totals
+    const totals = rows.reduce(
+      (acc, r) => ({
+        totalPrompt:     acc.totalPrompt     + (r.totalPrompt     ?? 0),
+        totalCompletion: acc.totalCompletion + (r.totalCompletion ?? 0),
+        totalCostUsd:    acc.totalCostUsd    + (Number(r.totalCostUsd) ?? 0),
+        callCount:       acc.callCount       + (r.callCount       ?? 0),
+      }),
+      { totalPrompt: 0, totalCompletion: 0, totalCostUsd: 0, callCount: 0 },
+    );
+
+    return reply.send({ rows, totals, periodDays: days });
   });
 }

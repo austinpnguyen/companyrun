@@ -176,8 +176,23 @@ export class AgentMemory {
   }
 
   // ----------------------------------------------------------
-  // Trim messages to fit within a token budget
+  // 2-phase context compression (hermes-agent pattern)
+  //
+  // Phase 1 — Content pruning: shrink large tool/assistant
+  //   messages in the "middle" section without dropping them.
+  //   Tool results > 600 chars are truncated; assistant > 1000.
+  //
+  // Phase 2 — Drop oldest: if still over budget after pruning,
+  //   drop from the front (oldest) while protecting the last
+  //   TAIL_PROTECT messages so recent context is always intact.
   // ----------------------------------------------------------
+
+  /** Number of recent messages always kept intact (tail guard) */
+  private static readonly TAIL_PROTECT = 12;
+  /** Max chars for tool result content before pruning */
+  private static readonly TOOL_MAX_CHARS = 600;
+  /** Max chars for assistant message before pruning */
+  private static readonly ASST_MAX_CHARS = 1000;
 
   trimToFit(msgs: LLMMessage[], maxTokens: number): LLMMessage[] {
     if (msgs.length === 0) return [];
@@ -185,26 +200,67 @@ export class AgentMemory {
     const totalTokens = this.estimateTokens(msgs);
     if (totalTokens <= maxTokens) return msgs;
 
-    // Strategy: drop oldest messages first (keep most recent context)
-    const result: LLMMessage[] = [];
-    let currentTokens = 0;
+    const tail = AgentMemory.TAIL_PROTECT;
 
-    // Walk from newest to oldest, accumulate until budget is hit
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      const msgTokens = this.estimateTokens([msgs[i]]);
-      if (currentTokens + msgTokens > maxTokens) break;
-      currentTokens += msgTokens;
-      result.unshift(msgs[i]);
+    // ── Phase 1: Prune large content from middle messages ──
+    const prunedMsgs: LLMMessage[] = msgs.map((msg, idx) => {
+      // Always keep tail messages intact
+      if (idx >= msgs.length - tail) return msg;
+
+      if (msg.role === 'tool' && msg.content && msg.content.length > AgentMemory.TOOL_MAX_CHARS) {
+        return {
+          ...msg,
+          content: msg.content.slice(0, AgentMemory.TOOL_MAX_CHARS)
+            + `\n...[tool output pruned — ${msg.content.length - AgentMemory.TOOL_MAX_CHARS} chars removed]`,
+        };
+      }
+      if (msg.role === 'assistant' && msg.content && msg.content.length > AgentMemory.ASST_MAX_CHARS) {
+        return {
+          ...msg,
+          content: msg.content.slice(0, AgentMemory.ASST_MAX_CHARS)
+            + `\n...[response truncated]`,
+        };
+      }
+      return msg;
+    });
+
+    const afterPhase1 = this.estimateTokens(prunedMsgs);
+    if (afterPhase1 <= maxTokens) {
+      log.debug(
+        { original: msgs.length, phaseApplied: 'prune-only', tokens: afterPhase1 },
+        'Context compressed via content pruning',
+      );
+      return prunedMsgs;
     }
+
+    // ── Phase 2: Drop oldest (protect last TAIL_PROTECT msgs) ──
+    const protected_ = prunedMsgs.slice(-tail);
+    const candidates = prunedMsgs.slice(0, -tail);
+
+    const protectedTokens = this.estimateTokens(protected_);
+    const remainingBudget = maxTokens - protectedTokens;
+    let budgetUsed = 0;
+    const kept: LLMMessage[] = [];
+
+    // Walk backwards through candidates (newest of the non-tail first)
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const t = this.estimateTokens([candidates[i]]);
+      if (budgetUsed + t > remainingBudget) break;
+      budgetUsed += t;
+      kept.unshift(candidates[i]);
+    }
+
+    const result = [...kept, ...protected_];
 
     log.debug(
       {
         original: msgs.length,
-        trimmed: result.length,
-        dropped: msgs.length - result.length,
-        tokens: currentTokens,
+        afterPrune: prunedMsgs.length,
+        dropped: prunedMsgs.length - result.length,
+        final: result.length,
+        tokens: budgetUsed + protectedTokens,
       },
-      'Messages trimmed to fit token budget',
+      'Context compressed via 2-phase: prune + drop',
     );
 
     return result;

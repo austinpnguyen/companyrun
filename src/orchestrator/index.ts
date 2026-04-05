@@ -21,6 +21,7 @@ import { consultationSystem } from './consultation.js';
 import type { Decision } from './decision-engine.js';
 import { taskExecutor } from '../tasks/executor.js';
 import { adversarialPipeline } from '../tasks/adversarial.js';
+import { cronManager } from '../tasks/cron.js';
 
 const log = createLogger('orchestrator');
 
@@ -103,6 +104,9 @@ export class Orchestrator {
     // Load any persisted decisions from the database
     await decisionEngine.loadPersistedDecisions();
 
+    // Start the cron scheduler (60-second tick)
+    cronManager.start();
+
     this.isRunning = true;
 
     // Run first heartbeat immediately
@@ -144,6 +148,7 @@ export class Orchestrator {
       this.heartbeatInterval = null;
     }
 
+    cronManager.stop();
     this.isRunning = false;
 
     // Update state

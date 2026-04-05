@@ -12,7 +12,24 @@ import type { LLMMessage, LLMTool, ToolCall } from '../llm/providers/base.js';
 const log = createLogger('agents:runtime');
 
 /** Maximum iterations of the tool-call loop to prevent infinite loops */
-const MAX_TOOL_ITERATIONS = 10;
+const MAX_TOOL_ITERATIONS = 20;
+
+/** Fraction of iterations used before injecting budget warnings */
+const BUDGET_WARN_70 = Math.floor(MAX_TOOL_ITERATIONS * 0.7);  // 14
+const BUDGET_WARN_90 = Math.floor(MAX_TOOL_ITERATIONS * 0.9);  // 18
+
+/** Build a budget-pressure warning string to inject into the next tool result */
+function budgetWarning(iteration: number): string | null {
+  if (iteration >= BUDGET_WARN_90) {
+    const left = MAX_TOOL_ITERATIONS - iteration;
+    return `\n\n⚠️ [BUDGET: ${left} iteration(s) remaining — wrap up immediately and return final answer]`;
+  }
+  if (iteration >= BUDGET_WARN_70) {
+    const left = MAX_TOOL_ITERATIONS - iteration;
+    return `\n\n[BUDGET: ${left} iteration(s) remaining — begin concluding your response]`;
+  }
+  return null;
+}
 
 /**
  * Strip <think>...</think> blocks from LLM output.
@@ -246,7 +263,13 @@ export class AgentRuntime {
             'Executing tool call',
           );
 
-          const toolResult = await this.executeTool(toolCall);
+          let toolResult = await this.executeTool(toolCall);
+
+          // Inject budget-pressure warning into the last tool result of the batch
+          const warning = budgetWarning(iteration);
+          if (warning && toolCall === assistantMessage.tool_calls![assistantMessage.tool_calls!.length - 1]) {
+            toolResult = toolResult + warning;
+          }
 
           // Parse args for the result record
           let parsedArgs: Record<string, unknown> = {};

@@ -117,6 +117,17 @@ export const tasks = pgTable('tasks', {
   creditReward: decimal('credit_reward', { precision: 8, scale: 2 }),
   deadline: timestamp('deadline', { withTimezone: true }),
   startedAt: timestamp('started_at', { withTimezone: true }),
+  // ── New: DAG dependency, retry, cron ─────────────────────
+  /** IDs of tasks that must complete before this task can run */
+  dependsOn: text('depends_on').array().default([]),
+  /** Number of retry attempts made so far */
+  retryCount: integer('retry_count').default(0),
+  /** Maximum number of retries before marking permanently failed */
+  maxRetries: integer('max_retries').default(2),
+  /** Cron expression (e.g. "every-5-min") — null means one-shot */
+  cronExpression: text('cron_expression'),
+  /** When this cron task should next fire */
+  cronNextRun: timestamp('cron_next_run', { withTimezone: true }),
   completedAt: timestamp('completed_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),

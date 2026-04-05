@@ -8,13 +8,41 @@
 // structured prompt; the response is stored as the task result.
 // ============================================================
 
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
+import { z } from 'zod';
 import { db } from '../config/database.js';
 import { tasks, agents, activityLog } from '../db/schema.js';
 import { agentManager } from '../agents/manager.js';
 import { createLogger } from '../shared/logger.js';
 import { taskManager } from './manager.js';
 import type { Task } from '../shared/types.js';
+
+// ── Zod schema for structured task responses ──────────────────
+// If agent returns valid JSON matching this, we store it structured.
+// If not, we store the raw string — both are valid.
+const TaskResponseSchema = z.object({
+  summary:         z.string(),
+  deliverables:    z.array(z.string()).optional(),
+  recommendations: z.array(z.string()).optional(),
+  status:          z.enum(['success', 'partial', 'blocked']).optional(),
+  blockers:        z.array(z.string()).optional(),
+}).passthrough();
+
+type StructuredTaskResponse = z.infer<typeof TaskResponseSchema>;
+
+function tryParseStructured(raw: string): StructuredTaskResponse | null {
+  try {
+    // Strip markdown code fences if present
+    const stripped = raw.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
+    const parsed = JSON.parse(stripped);
+    return TaskResponseSchema.parse(parsed);
+  } catch {
+    return null;
+  }
+}
+
+/** Sleep for ms milliseconds */
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 const log = createLogger('tasks:executor');
 
@@ -57,9 +85,18 @@ export class TaskExecutor {
       .limit(slots);
 
     // Filter out tasks we're already running (in case DB is slightly behind)
-    const candidates = assignedTasks.filter((t) => !this.runningTasks.has(t.id));
+    const notRunning = assignedTasks.filter((t) => !this.runningTasks.has(t.id));
+
+    if (notRunning.length === 0) {
+      return { started: 0, running: this.runningTasks.size };
+    }
+
+    // ── DAG dependency check ──────────────────────────────────
+    // Only run tasks whose dependsOn list is fully completed.
+    const candidates = await this.filterReadyTasks(notRunning);
 
     if (candidates.length === 0) {
+      log.debug({ blocked: notRunning.length }, 'All candidates blocked by dependencies');
       return { started: 0, running: this.runningTasks.size };
     }
 
@@ -74,13 +111,94 @@ export class TaskExecutor {
       started++;
 
       // Fire-and-forget: do NOT await — this runs in background
-      this.runTask(task).catch((err) => {
+      this.runTaskWithRetry(task).catch((err) => {
         log.error({ err, taskId: task.id }, 'Unhandled error in task execution');
         this.runningTasks.delete(task.id);
       });
     }
 
     return { started, running: this.runningTasks.size };
+  }
+
+  // ----------------------------------------------------------
+  // DAG: filter tasks whose dependsOn are all completed
+  // ----------------------------------------------------------
+
+  private async filterReadyTasks(candidates: Task[]): Promise<Task[]> {
+    const ready: Task[] = [];
+
+    for (const task of candidates) {
+      const deps = (task.dependsOn ?? []) as string[];
+      if (deps.length === 0) {
+        ready.push(task);
+        continue;
+      }
+
+      // Check all dependency statuses
+      const depRows = await db
+        .select({ id: tasks.id, status: tasks.status })
+        .from(tasks)
+        .where(inArray(tasks.id, deps));
+
+      const allDone = depRows.length === deps.length
+        && depRows.every((r) => r.status === 'completed');
+
+      if (allDone) {
+        ready.push(task);
+      } else {
+        log.debug(
+          { taskId: task.id, deps, depStatuses: depRows.map((r) => r.status) },
+          'Task blocked by unfinished dependencies',
+        );
+      }
+    }
+
+    return ready;
+  }
+
+  // ----------------------------------------------------------
+  // Retry wrapper — exponential backoff up to task.maxRetries
+  // ----------------------------------------------------------
+
+  private async runTaskWithRetry(task: Task): Promise<void> {
+    const maxRetries = (task.maxRetries ?? 2) as number;
+    const baseDelayMs = 3_000; // 3s → 6s → 12s
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        await this.runTask(task);
+        return; // success
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+
+        if (attempt >= maxRetries) {
+          log.error(
+            { taskId: task.id, attempt, reason },
+            'Task exhausted all retries — marking failed',
+          );
+          try {
+            await taskManager.fail(task.id, `Exhausted ${maxRetries} retries. Last error: ${reason}`);
+          } catch { /* already failed or terminal */ }
+          return;
+        }
+
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        log.warn(
+          { taskId: task.id, attempt, maxRetries, delayMs: delay, reason },
+          'Task failed — retrying with backoff',
+        );
+
+        // Persist retry count
+        try {
+          await db
+            .update(tasks)
+            .set({ retryCount: attempt + 1, status: 'assigned' })
+            .where(eq(tasks.id, task.id));
+        } catch { /* non-fatal */ }
+
+        await sleep(delay);
+      }
+    }
   }
 
   // ----------------------------------------------------------
@@ -125,13 +243,18 @@ export class TaskExecutor {
         prompt,
       );
 
+      // Try to parse agent response as structured JSON (Zod validation)
+      const structured = tryParseStructured(result.response);
+
       // Store result and mark completed
       await taskManager.complete(taskId, {
         response: result.response,
+        structured: structured ?? undefined,
         tokensUsed: result.tokensUsed,
         cost: result.cost,
         toolCalls: result.toolCalls.length,
         executedAt: new Date().toISOString(),
+        ...(structured ? { parsedOk: true } : {}),
       });
 
       log.info(
@@ -158,14 +281,8 @@ export class TaskExecutor {
         },
       });
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      log.error({ error, taskId, title: task.title }, 'Task execution failed');
-
-      try {
-        await taskManager.fail(taskId, reason);
-      } catch (failError) {
-        log.error({ failError, taskId }, 'Could not mark task as failed');
-      }
+      // Re-throw so runTaskWithRetry can handle retry logic
+      throw error;
     } finally {
       this.runningTasks.delete(taskId);
     }
