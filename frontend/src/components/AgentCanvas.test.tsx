@@ -17,9 +17,11 @@ const mockAdversarial: Agent = {
 };
 
 describe('AgentCanvas', () => {
-  it('renders empty state when no agents', () => {
+  it('renders zoom controls', () => {
     render(<AgentCanvas agents={[]} onAgentClick={vi.fn()} />);
-    expect(screen.getByText(/No agents hired/i)).toBeInTheDocument();
+    expect(screen.getByTitle('Zoom in')).toBeInTheDocument();
+    expect(screen.getByTitle('Zoom out')).toBeInTheDocument();
+    expect(screen.getByTitle('Fit view')).toBeInTheDocument();
   });
 
   it('renders agent nodes', () => {
@@ -31,7 +33,10 @@ describe('AgentCanvas', () => {
   it('calls onAgentClick when node is clicked', () => {
     const onClick = vi.fn();
     render(<AgentCanvas agents={[mockWorker]} onAgentClick={onClick} />);
-    fireEvent.click(screen.getByText('Alice').closest('g')!);
+    // Click the node div (parent of the name text)
+    const nameEl = screen.getByText('Alice');
+    const nodeDiv = nameEl.closest('[style*="cursor: pointer"]') as HTMLElement;
+    fireEvent.click(nodeDiv);
     expect(onClick).toHaveBeenCalledWith(mockWorker);
   });
 });
