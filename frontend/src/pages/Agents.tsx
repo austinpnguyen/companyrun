@@ -493,7 +493,7 @@ export default function Agents() {
               </button>
             </div>
           ) : (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden" style={{ height: 600 }}>
               <AgentCanvas agents={agents} onAgentClick={setSelectedAgent} />
             </div>
           )}
