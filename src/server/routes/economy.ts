@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { FastifyInstance } from 'fastify';
-import { sql, desc } from 'drizzle-orm';
+import { sql, desc, gte } from 'drizzle-orm';
 import { db } from '../../config/database.js';
 import { llmUsage } from '../../db/schema.js';
 import { economyEngine, walletService } from '../../economy/index.js';
@@ -122,14 +122,14 @@ export default async function economyRoutes(app: FastifyInstance): Promise<void>
         model:            llmUsage.model,
         totalPrompt:      sql<number>`SUM(${llmUsage.promptTokens})::int`,
         totalCompletion:  sql<number>`SUM(${llmUsage.completionTokens})::int`,
-        totalCostUsd:     sql<number>`SUM(${llmUsage.costUsd}::numeric)`,
+        totalCostUsd:     sql<number>`SUM(CAST(${llmUsage.costUsd} AS numeric))`,
         callCount:        sql<number>`COUNT(*)::int`,
         avgLatencyMs:     sql<number>`AVG(${llmUsage.latencyMs})::int`,
       })
       .from(llmUsage)
-      .where(sql`${llmUsage.createdAt} >= ${since}`)
+      .where(gte(llmUsage.createdAt, since))
       .groupBy(llmUsage.agentId, llmUsage.provider, llmUsage.model)
-      .orderBy(desc(sql`SUM(${llmUsage.costUsd}::numeric)`));
+      .orderBy(desc(sql`SUM(CAST(${llmUsage.costUsd} AS numeric))`));
 
     // Also compute totals
     const totals = rows.reduce(
